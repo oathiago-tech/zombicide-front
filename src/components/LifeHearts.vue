@@ -26,7 +26,7 @@ const max = computed(() => Math.max(0, props.max ?? 0))
 .hearts{
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 20px;
 }
 
 /* Coração em CSS (clean e leve) */

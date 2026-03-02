@@ -1,7 +1,7 @@
 <template>
-  <GameHud playerName="" />
+  <RouterView />
 </template>
 
 <script setup>
-import GameHud from './views/GameHud.vue'
+import { RouterView } from 'vue-router'
 </script>
