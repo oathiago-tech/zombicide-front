@@ -40,7 +40,7 @@
 
           </StatBadge>
 
-          <StatBadge title="Level">
+          <StatBadge title="Danger Level">
             <template #value>
               <span class="levelValue">{{ level }}</span>
             </template>
@@ -111,7 +111,7 @@ function nextPlayer() {
  */
 const maxLife = ref(3)
 const life = ref(3)
-const level = ref(0)
+const level = ref(36)
 </script>
 
 <style scoped>

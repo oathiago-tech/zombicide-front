@@ -58,19 +58,19 @@ const wavePath2 = 'M0 70 L60 70 L85 70 L100 40 L115 100 L130 65 L170 65 L200 65 
 
 .hb__grid path{
   stroke: rgba(255,255,255,.06);
-  stroke-width: 1;
+  stroke-width: 10;
 }
 
 .hb__wave path{
   fill: none;
   stroke: currentColor;
-  stroke-width: 3.5;
+  stroke-width: 5;
   stroke-linecap: round;
   stroke-linejoin: round;
 
   stroke-dasharray: 300 300;
-  animation: hb-move 1.35s linear infinite;
-  filter: drop-shadow(0 0 6px rgba(255,255,255,.14));
+  animation: hb-move 2.35s linear infinite;
+  filter: drop-shadow(0 0 1px rgba(255,255,255,.24));
 }
 
 /* segunda linha começa “adiantada” pra ficar contínuo */
