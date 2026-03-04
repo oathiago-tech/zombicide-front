@@ -15,38 +15,55 @@
         </template>
 
         <div class="gameList">
-          <div v-for="g in games" :key="g.id" class="gameRow">
-            <div class="gameRow__left">
-              <div class="gameRow__name">{{ g.name }}</div>
-              <div class="gameRow__meta">
-                <span class="pill" :class="statusClass(g.status)">{{ g.status }}</span>
-                <span class="muted">Players: {{ g.playersCount }}</span>
-                <span class="muted">Last: {{ g.updatedAt }}</span>
+          <div v-if="loading" class="empty">
+            Carregando partidas...
+          </div>
+
+          <div v-else-if="error" class="empty">
+            {{ error }}
+          </div>
+
+          <div v-else>
+            <div v-for="g in games" :key="g.id" class="gameRow">
+              <div class="gameRow__left">
+                <div class="gameRow__name">
+                  {{ g.campaign?.name || 'Sem campanha' }}
+                </div>
+
+                <div class="gameRow__meta">
+                  <span class="pill" :class="difficultClass(g.difficult)">
+                    {{ g.difficult || '—' }}
+                  </span>
+
+                  <span class="muted">Players: {{ g.players?.length ?? 0 }}</span>
+                  <span class="muted">
+                    {{ (g.players ?? []).map(p => p.name).filter(Boolean).join(', ') || '—' }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="gameRow__actions">
+                <button class="btn btn--primary" type="button" @click="startGame(g)">
+                  Iniciar partida
+                </button>
+
+                <button class="btn btn--secondary" type="button" @click="continueGame(g)">
+                  Continuar partida
+                </button>
+
+                <button class="btn btn--ghost" type="button" @click="editPlayers(g)">
+                  Editar jogadores
+                </button>
+
+                <button class="btn btn--danger" type="button" @click="deleteGame(g)">
+                  Excluir
+                </button>
               </div>
             </div>
 
-            <div class="gameRow__actions">
-              <button class="btn btn--primary" type="button" @click="startGame(g)">
-                Iniciar partida
-              </button>
-
-              <button class="btn btn--secondary" type="button" @click="continueGame(g)"
-                      :disabled="g.status !== 'IN_PROGRESS'">
-                Continuar partida
-              </button>
-
-              <button class="btn btn--ghost" type="button" @click="editPlayers(g)">
-                Editar jogadores
-              </button>
-
-              <button class="btn btn--danger" type="button" @click="deleteGame(g)">
-                Excluir
-              </button>
+            <div v-if="games.length === 0" class="empty">
+              Nenhuma partida criada ainda.
             </div>
-          </div>
-
-          <div v-if="games.length === 0" class="empty">
-            Nenhuma partida criada ainda.
           </div>
         </div>
       </FramePanel>
@@ -63,8 +80,12 @@
             Criar partida
           </button>
 
+          <button class="btn btn--ghost" type="button" @click="loadGames" :disabled="loading">
+            Atualizar lista
+          </button>
+
           <div class="hint muted">
-            Esta tela será a página inicial do sistema.
+            Esta tela é a página inicial do sistema.
             Ao iniciar/continuar, abrimos o HUD do jogo.
           </div>
         </div>
@@ -74,47 +95,74 @@
 </template>
 
 <script setup>
-import {ref} from 'vue'
-import {useRouter} from 'vue-router'
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import FramePanel from '../components/FramePanel.vue'
 
 const router = useRouter()
 
-const games = ref([
-  {id: 'g1', name: 'Partida #1', status: 'IN_PROGRESS', playersCount: 6, updatedAt: '—'}
-])
+const loading = ref(false)
+const error = ref('')
+const games = ref([])
 
-function statusClass(status) {
-  if (status === 'NEW') return 'pill--blue'
-  if (status === 'IN_PROGRESS') return 'pill--orange'
-  if (status === 'FINISHED') return 'pill--muted'
+function difficultClass(difficult) {
+  if (difficult === 'EASY') return 'pill--blue'
+  if (difficult === 'NORMAL') return 'pill--orange'
+  if (difficult === 'HARD') return 'pill--red'
   return 'pill--muted'
 }
 
+async function loadGames() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await fetch('http://localhost:8080/matches/all', { method: 'GET' })
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      throw new Error(`ERRO AO LISTAR PARTIDAS (HTTP ${res.status}). ${text}`)
+    }
+    const data = await res.json()
+    games.value = Array.isArray(data) ? data : []
+    if (!Array.isArray(data)) {
+      error.value = 'Resposta inesperada do backend (era esperado uma lista de partidas).'
+    }
+  } catch (e) {
+    error.value = e?.message ?? 'Falha ao listar partidas'
+    games.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
 function startGame(game) {
-  router.push({name: 'game'})
+  router.push({ name: 'game' })
 }
 
 function continueGame(game) {
-  router.push({name: 'game'})
+  router.push({ name: 'game' })
 }
 
 function editPlayers(game) {
-  alert(`Editar jogadores: ${game.name}`)
+  alert(`Editar jogadores: ${game?.campaign?.name ?? game?.id ?? ''}`)
 }
 
 function deleteGame(game) {
-  const ok = confirm(`Excluir ${game.name}?`)
-  if (!ok) return
-  games.value = games.value.filter(g => g.id !== game.id)
+  alert('Excluir ainda não implementado no backend.')
 }
 
 function goCreateMatch() {
-  router.push({name: 'match-create'})
+  router.push({ name: 'match-create' })
 }
+
+onMounted(loadGames)
 </script>
 
 <style scoped>
+.pill--red {
+  background: rgba(255, 59, 59, .20);
+  color: #ffd0d0;
+}
+
 .home {
   display: grid;
   gap: 12px;
@@ -201,7 +249,7 @@ function goCreateMatch() {
 
 .gameRow__name {
   font-family: "Bebas Neue", system-ui, sans-serif;
-  font-size: 34px;
+  font-size: 20px;
   line-height: 1;
 }
 

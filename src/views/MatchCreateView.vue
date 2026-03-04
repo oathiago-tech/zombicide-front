@@ -132,11 +132,6 @@
 
         <div class="info">
           <div class="muted">
-            Endpoint (mock):
-            <div class="mono">POST http://localhost:8080/match/create</div>
-          </div>
-
-          <div class="muted">
             Tags disponíveis:
             <div class="tags">
               <span v-for="c in characters" :key="c.tag" class="tagPill">{{ c.tag }}</span>
@@ -149,32 +144,25 @@
 </template>
 
 <script setup>
-import {computed, reactive, ref} from 'vue'
-import {useRouter} from 'vue-router'
+import { computed, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import FramePanel from '../components/FramePanel.vue'
 
 const router = useRouter()
 
-/**
- * Associação imagem -> TAG (como você pediu)
- */
 const characters = [
-  {tag: 'AMY', img: '/images/players/amy.webp'},
-  {tag: 'DOUG', img: '/images/players/doug.webp'},
-  {tag: 'JOSH', img: '/images/players/josh.webp'},
-  {tag: 'NED', img: '/images/players/ned.webp'},
-  {tag: 'PHIL', img: '/images/players/phil.webp'},
-  {tag: 'WANDA', img: '/images/players/wanda.png'}
+  { tag: 'AMY', img: '/images/players/amy.webp' },
+  { tag: 'DOUG', img: '/images/players/doug.webp' },
+  { tag: 'JOSH', img: '/images/players/josh.webp' },
+  { tag: 'NED', img: '/images/players/ned.webp' },
+  { tag: 'PHIL', img: '/images/players/phil.webp' },
+  { tag: 'WANDA', img: '/images/players/wanda.png' }
 ]
 
 const characterByTag = Object.fromEntries(characters.map(c => [c.tag, c]))
 
 const campaign = ref('')
 const difficult = ref('EASY')
-
-/**
- * players: [{ id, name, character }]
- */
 const players = reactive([])
 
 const submitting = ref(false)
@@ -196,7 +184,7 @@ function newId() {
 
 function addPlayer() {
   if (players.length >= 6) return
-  players.push({id: newId(), name: '', character: ''})
+  players.push({ id: newId(), name: '', character: '' })
 }
 
 function removePlayer(index) {
@@ -213,18 +201,15 @@ function characterOptionsFor(player) {
 }
 
 function goBack() {
-  router.push({name: 'home'})
+  router.push({ name: 'home' })
 }
 
-/**
- * Mock de chamada pro backend (deixa pronto pro endpoint real)
- */
 async function submit() {
   error.value = ''
   lastPayload.value = ''
 
   const payload = {
-    campaign: campaign.value,
+    campaign: { name: campaign.value},
     players: players.map(p => ({
       name: p.name,
       character: p.character
@@ -236,20 +221,18 @@ async function submit() {
 
   submitting.value = true
   try {
-    const res = await fetch('http://localhost:8080/match/create', {
+    const res = await fetch('http://localhost:8080/matches/create', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     })
 
     if (!res.ok) {
       const text = await res.text().catch(() => '')
-      throw new Error(`Erro HTTP ${res.status}. ${text}`)
+      throw new Error(`Erro ao criar partida (HTTP ${res.status}). ${text}`)
     }
 
-    // Futuro: pegar o id da match retornada e navegar /game/:id
-    // Por enquanto: abre o HUD
-    router.push({name: 'game'})
+    router.push({ name: 'home' })
   } catch (e) {
     error.value = e?.message ?? 'Falha ao enviar'
   } finally {
