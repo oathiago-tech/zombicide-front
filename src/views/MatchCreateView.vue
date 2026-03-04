@@ -27,7 +27,7 @@
           </div>
 
           <div class="field">
-            <label class="label">Dificuldade</label>
+            <label class="label">Difficulty</label>
             <select v-model="difficult" class="select">
               <option value="EASY">EASY</option>
               <option value="NORMAL">NORMAL</option>
@@ -44,7 +44,7 @@
                   @click="addPlayer"
                   :disabled="players.length >= 6 || availableCharacters.length === 0"
               >
-                Adicionar jogador
+                Add Player
               </button>
             </div>
           </div>
@@ -63,7 +63,7 @@
 
               <div class="playerRow__fields">
                 <div class="field">
-                  <label class="label">Nome real do jogador</label>
+                  <label class="label">Real Name</label>
                   <input
                       v-model.trim="p.name"
                       class="input"
@@ -74,7 +74,7 @@
                 </div>
 
                 <div class="field">
-                  <label class="label">Personagem</label>
+                  <label class="label">Character</label>
                   <select v-model="p.character" class="select" required>
                     <option disabled value="">Selecione</option>
 
@@ -98,7 +98,7 @@
             </div>
 
             <div v-if="players.length === 0" class="empty">
-              Adicione até 6 jogadores. Cada personagem pode ser escolhido apenas uma vez.
+              Add up to 6 players. Each character can only be chosen once.
             </div>
           </div>
 
@@ -115,11 +115,6 @@
           <div v-if="error" class="errorBox">
             {{ error }}
           </div>
-
-          <div v-if="lastPayload" class="payloadBox">
-            <div class="payloadBox__title">Payload enviado (mock):</div>
-            <pre class="payloadBox__pre">{{ lastPayload }}</pre>
-          </div>
         </form>
       </FramePanel>
 
@@ -132,7 +127,7 @@
 
         <div class="info">
           <div class="muted">
-            Tags disponíveis:
+            Characters available
             <div class="tags">
               <span v-for="c in characters" :key="c.tag" class="tagPill">{{ c.tag }}</span>
             </div>
@@ -147,6 +142,7 @@
 import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import FramePanel from '../components/FramePanel.vue'
+import { API_BASE_URL } from '../../config/api.js'
 
 const router = useRouter()
 
@@ -221,7 +217,7 @@ async function submit() {
 
   submitting.value = true
   try {
-    const res = await fetch('http://localhost:8080/matches/create', {
+    const res = await fetch(API_BASE_URL + '/matches/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -245,6 +241,11 @@ async function submit() {
 .create {
   display: grid;
   gap: 12px;
+}
+
+.pill--green{
+  background: linear-gradient(#17a45c, #0b5a32);
+  color: #fff;
 }
 
 .banner {
@@ -531,8 +532,8 @@ async function submit() {
   padding: 0 10px;
   border-radius: 999px;
   border: 2px solid rgba(0, 0, 0, .45);
-  background: rgba(255, 255, 255, .10);
-  color: rgba(255, 255, 255, .85);
+  background: rgb(133, 255, 114);
+  color: rgb(0, 0, 0);
   font-weight: 900;
   letter-spacing: .04em;
   text-transform: uppercase;
