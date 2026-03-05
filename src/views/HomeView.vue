@@ -36,9 +36,9 @@
                   </span>
 
                   <span class="muted">Players: {{ g.players?.length ?? 0 }}</span>
-<!--                  <span class="muted">-->
-<!--                    {{ (g.players ?? []).map(p => p.name).filter(Boolean).join(', ') || '—' }}-->
-<!--                  </span>-->
+                  <!--                  <span class="muted">-->
+                  <!--                    {{ (g.players ?? []).map(p => p.name).filter(Boolean).join(', ') || '—' }}-->
+                  <!--                  </span>-->
                 </div>
               </div>
 
@@ -48,7 +48,7 @@
                 </button>
 
                 <button class="btn btn--danger" type="button" @click="deleteGame(g)">
-                  Excluir
+                  Delete
                 </button>
               </div>
             </div>
@@ -83,10 +83,10 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import {onMounted, ref} from 'vue'
+import {useRouter} from 'vue-router'
 import FramePanel from '../components/FramePanel.vue'
-import { API_BASE_URL } from '../../config/api.js'
+import {API_BASE_URL} from '../../config/api.js'
 
 const router = useRouter()
 
@@ -110,7 +110,7 @@ async function loadGames() {
   loading.value = true
   error.value = ''
   try {
-    const res = await fetch('http://192.168.100.4:8080/matches/all', { method: 'GET' })
+    const res = await fetch('http://192.168.100.4:8080/matches/all', {method: 'GET'})
     if (!res.ok) {
       const text = await res.text().catch(() => '')
       throw new Error(`ERRO AO LISTAR PARTIDAS (HTTP ${res.status}). ${text}`)
@@ -138,7 +138,7 @@ async function startGame(game) {
   error.value = ''
   try {
     const url = `${API_BASE}/matches/start?match=${encodeURIComponent(game.id)}`
-    const res = await fetch(url, { method: 'POST' })
+    const res = await fetch(url, {method: 'POST'})
 
     if (!res.ok) {
       const text = await res.text().catch(() => '')
@@ -151,7 +151,7 @@ async function startGame(game) {
     sessionStorage.setItem(ACTIVE_MATCH_STORAGE_KEY, JSON.stringify(match))
 
     // opcional: também passa o match na query (útil para debug)
-    router.push({ name: 'game', query: { match: match?.id ?? game.id } })
+    router.push({name: 'game', query: {match: match?.id ?? game.id}})
   } catch (e) {
     error.value = e?.message ?? 'Falha ao iniciar partida'
   } finally {
@@ -160,7 +160,7 @@ async function startGame(game) {
 }
 
 function continueGame(game) {
-  router.push({ name: 'game', query: { match: game?.id } })
+  router.push({name: 'game', query: {match: game?.id}})
 }
 
 function editPlayers(game) {
@@ -172,24 +172,24 @@ function deleteGame(game) {
 }
 
 function goCreateMatch() {
-  router.push({ name: 'match-create' })
+  router.push({name: 'match-create'})
 }
 
 onMounted(loadGames)
 </script>
 
 <style scoped>
-.pill--green{
+.pill--green {
   background: linear-gradient(#17a45c, #0b5a32);
   color: #fff;
 }
 
-.pill--yellow{
+.pill--yellow {
   background: linear-gradient(#f0c24a, #b78114);
   color: #111; /* amarelo muito claro, fica melhor com texto escuro */
 }
 
-.pill--red{
+.pill--red {
   background: linear-gradient(#ff3b3b, #9c0f23);
   color: #fff;
 }

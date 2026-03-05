@@ -139,20 +139,20 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import {computed, reactive, ref} from 'vue'
+import {useRouter} from 'vue-router'
 import FramePanel from '../components/FramePanel.vue'
-import { API_BASE_URL } from '../../config/api.js'
+import {API_BASE_URL} from '../../config/api.js'
 
 const router = useRouter()
 
 const characters = [
-  { tag: 'AMY', img: '/images/players/amy.webp' },
-  { tag: 'DOUG', img: '/images/players/doug.webp' },
-  { tag: 'JOSH', img: '/images/players/josh.webp' },
-  { tag: 'NED', img: '/images/players/ned.webp' },
-  { tag: 'PHIL', img: '/images/players/phil.webp' },
-  { tag: 'WANDA', img: '/images/players/wanda.png' }
+  {tag: 'AMY', img: '/images/players/amy.webp'},
+  {tag: 'DOUG', img: '/images/players/doug.webp'},
+  {tag: 'JOSH', img: '/images/players/josh.webp'},
+  {tag: 'NED', img: '/images/players/ned.webp'},
+  {tag: 'PHIL', img: '/images/players/phil.webp'},
+  {tag: 'WANDA', img: '/images/players/wanda.png'}
 ]
 
 const characterByTag = Object.fromEntries(characters.map(c => [c.tag, c]))
@@ -180,7 +180,7 @@ function newId() {
 
 function addPlayer() {
   if (players.length >= 6) return
-  players.push({ id: newId(), name: '', character: '' })
+  players.push({id: newId(), name: '', character: ''})
 }
 
 function removePlayer(index) {
@@ -197,7 +197,7 @@ function characterOptionsFor(player) {
 }
 
 function goBack() {
-  router.push({ name: 'home' })
+  router.push({name: 'home'})
 }
 
 async function submit() {
@@ -205,7 +205,7 @@ async function submit() {
   lastPayload.value = ''
 
   const payload = {
-    campaign: { name: campaign.value},
+    campaign: {name: campaign.value},
     players: players.map(p => ({
       name: p.name,
       character: p.character
@@ -219,7 +219,7 @@ async function submit() {
   try {
     const res = await fetch(API_BASE_URL + '/matches/create', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload)
     })
 
@@ -228,7 +228,7 @@ async function submit() {
       throw new Error(`Erro ao criar partida (HTTP ${res.status}). ${text}`)
     }
 
-    router.push({ name: 'home' })
+    router.push({name: 'home'})
   } catch (e) {
     error.value = e?.message ?? 'Falha ao enviar'
   } finally {
@@ -243,7 +243,7 @@ async function submit() {
   gap: 12px;
 }
 
-.pill--green{
+.pill--green {
   background: linear-gradient(#17a45c, #0b5a32);
   color: #fff;
 }
@@ -543,6 +543,7 @@ async function submit() {
 .muted {
   color: var(--muted);
 }
+
 x
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;

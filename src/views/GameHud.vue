@@ -39,8 +39,9 @@
           </button>
         </div>
 
-        <div class="frame-subtitle">
-          <span class="namePlaceholder">{{ currentPlayer.characterName }}</span>
+        <div class="frame-subtitle frame-subtitle--nav">
+          <span class="frame-subtitle__text namePlaceholder">{{ currentPlayer.characterName }}</span>
+          <span class="navSpacer" aria-hidden="true"></span>
         </div>
 
         <div class="hud-grid">
@@ -62,7 +63,7 @@
                 </template>
 
                 <div class="muted small">
-                  <span><LifeHearts :current="life" :max="maxLife" /></span>
+                  <span><LifeHearts :current="life" :max="maxLife"/></span>
                 </div>
               </StatBadge>
 
@@ -70,7 +71,7 @@
                 <template #value>
                   <span class="levelValue">{{ level }}</span>
                 </template>
-                <HeartbeatMonitor :value="level" />
+                <HeartbeatMonitor :value="level"/>
               </StatBadge>
             </div>
 
@@ -93,10 +94,10 @@
             </template>
 
             <div class="enemiesList">
-              <EnemyItem name="Walkers" :many="0" image-src="/images/zombies/walker.webp" />
-              <EnemyItem name="Runners" :many="0" image-src="/images/zombies/runner.webp" />
-              <EnemyItem name="Fatties" :many="0" image-src="/images/zombies/fatty.webp" />
-              <EnemyItem name="Abomination" :many="0" image-src="/images/zombies/abomination.webp" />
+              <EnemyItem name="Walkers" :many="0" image-src="/images/zombies/walker.webp"/>
+              <EnemyItem name="Runners" :many="0" image-src="/images/zombies/runner.webp"/>
+              <EnemyItem name="Fatties" :many="0" image-src="/images/zombies/fatty.webp"/>
+              <EnemyItem name="Abomination" :many="0" image-src="/images/zombies/abomination.webp"/>
             </div>
           </FramePanel>
         </div>
@@ -106,15 +107,15 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import {computed, onMounted, ref} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
 import FramePanel from '../components/FramePanel.vue'
 import StatBadge from '../components/StatBadge.vue'
 import EnemyItem from '../components/EnemyItem.vue'
 import HeartbeatMonitor from '../components/HeartbeatMonitor.vue'
 import LifeHearts from '../components/LifeHearts.vue'
 import ZombieHud from '../components/zombieHud.vue'
-import { API_BASE_URL } from '../../config/api.js'
+import {API_BASE_URL} from '../../config/api.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -196,7 +197,11 @@ const level = computed(() => currentPlayer.value?.level ?? 0)
 function getActiveMatch() {
   const raw = sessionStorage.getItem(ACTIVE_MATCH_STORAGE_KEY)
   if (!raw) return null
-  try { return JSON.parse(raw) } catch { return null }
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
 }
 
 function getActiveMatchId() {
@@ -247,13 +252,13 @@ async function pauseMatch() {
   error.value = ''
   try {
     const url = `${API_BASE}/matches/pause?match=${encodeURIComponent(matchId)}`
-    const res = await fetch(url, { method: 'POST' })
+    const res = await fetch(url, {method: 'POST'})
     if (!res.ok) {
       const text = await res.text().catch(() => '')
       throw new Error(`ERRO AO PAUSAR PARTIDA (HTTP ${res.status}). ${text}`)
     }
 
-    router.push({ name: 'home' })
+    router.push({name: 'home'})
   } catch (e) {
     error.value = e?.message ?? 'Falha ao pausar partida'
   } finally {
@@ -266,7 +271,7 @@ async function damagePlayer(playerId) {
   error.value = ''
   try {
     const url = `${DAMAGE_API_BASE}/matches/damage?player=${encodeURIComponent(playerId)}&amount=1`
-    const res = await fetch(url, { method: 'POST' })
+    const res = await fetch(url, {method: 'POST'})
     if (!res.ok) {
       const text = await res.text().catch(() => '')
       throw new Error(`ERRO AO APLICAR DANO (HTTP ${res.status}). ${text}`)
@@ -290,7 +295,7 @@ async function damagePlayer(playerId) {
       const idx = players.value.findIndex(p => p.id === playerId)
       if (idx >= 0) {
         const p = players.value[idx]
-        players.value[idx] = { ...p, life: Math.max(0, Number(p.life ?? 0) - 1) }
+        players.value[idx] = {...p, life: Math.max(0, Number(p.life ?? 0) - 1)}
       }
     }
   } catch (e) {
@@ -310,7 +315,7 @@ async function revertPlayer(playerId) {
 
   try {
     const url = `${DAMAGE_API_BASE}/matches/damage/revert?event=${encodeURIComponent(eventId)}`
-    const res = await fetch(url, { method: 'POST' })
+    const res = await fetch(url, {method: 'POST'})
     if (!res.ok) {
       const text = await res.text().catch(() => '')
       // devolve o evento para não perder o histórico caso a chamada falhe
@@ -328,7 +333,7 @@ async function revertPlayer(playerId) {
       const idx = players.value.findIndex(p => p.id === playerId)
       if (idx >= 0) {
         const p = players.value[idx]
-        players.value[idx] = { ...p, life: Math.min(Number(maxLife.value ?? 3), Number(p.life ?? 0) + 1) }
+        players.value[idx] = {...p, life: Math.min(Number(maxLife.value ?? 3), Number(p.life ?? 0) + 1)}
       }
     }
   } catch (e) {
@@ -366,7 +371,7 @@ async function nextTurn() {
   turning.value = true
   error.value = ''
   try {
-    const res = await fetch(`${API_BASE}/matches/turn/next`, { method: 'POST' })
+    const res = await fetch(`${API_BASE}/matches/turn/next`, {method: 'POST'})
     if (!res.ok) {
       const text = await res.text().catch(() => '')
       throw new Error(`ERRO AO PASSAR TURNO (HTTP ${res.status}). ${text}`)
@@ -387,31 +392,31 @@ onMounted(loadMatchFromSession)
 </script>
 
 <style scoped>
-.namePlaceholder{
+.namePlaceholder {
   opacity: .95;
 }
 
-.topActions{
+.topActions {
   display: flex;
   justify-content: flex-end;
   margin-bottom: 10px;
 }
 
-.pauseBtn{
+.pauseBtn {
   height: 44px;
   padding: 0 16px;
   border-radius: 12px;
-  border: 2px solid rgba(0,0,0,.65);
-  background: rgba(0,0,0,.22);
-  color: rgba(255,255,255,.92);
+  border: 2px solid rgba(0, 0, 0, .65);
+  background: rgba(0, 0, 0, .22);
+  color: rgba(255, 255, 255, .92);
   font-family: "Bebas Neue", system-ui, sans-serif;
   font-size: 28px;
   letter-spacing: .03em;
   cursor: pointer;
-  box-shadow: 0 0 0 2px rgba(255,255,255,.06) inset;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .06) inset;
 }
 
-.pauseBtn:disabled{
+.pauseBtn:disabled {
   opacity: .45;
   cursor: not-allowed;
 }
@@ -599,5 +604,26 @@ onMounted(loadMatchFromSession)
   line-height: 1;
   color: rgba(255, 255, 255, .92);
   text-shadow: 0 2px 0 rgba(0, 0, 0, .45);
+}
+
+.frame-subtitle--nav {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px; /* mesma largura do botão */
+  align-items: center;
+  gap: 12px;
+}
+
+.frame-subtitle__text {
+  justify-self: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 420px) {
+  .frame-subtitle--nav {
+    grid-template-columns: minmax(0, 1fr) 46px; /* mesma do mobile */
+    gap: 10px;
+  }
 }
 </style>

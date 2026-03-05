@@ -1,7 +1,7 @@
 <template>
   <div class="zombieHud">
     <div class="frame-title frame-title--nav">
-      <span class="frame-title__text">ZOMBIES</span>
+      <span class="frame-title__text">Zombies</span>
 
       <button
           class="navBtn"
@@ -14,7 +14,7 @@
       </button>
     </div>
 
-    <div class="frame-subtitle">
+    <div class="frame-subtitle frame-subtitle--nav">
       <span class="namePlaceholder">AMOUNT: {{ totalZombies }}</span>
     </div>
 
@@ -28,7 +28,7 @@
 
         <div class="zBody">
           <div class="zHero">
-            <img class="zHero__img" src="/images/zombies/abomination.webp" alt="Abomination" />
+            <img class="zHero__img" src="/images/zombies/abomination.webp" alt="Abomination"/>
           </div>
         </div>
       </FramePanel>
@@ -48,7 +48,7 @@
             </div>
 
             <div class="pMid">
-              <LifeHearts :current="p.life ?? 0" :max="3" />
+              <LifeHearts :current="p.life ?? 0" :max="3"/>
             </div>
 
             <div class="pRight">
@@ -72,17 +72,17 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import {computed} from 'vue'
 import FramePanel from '../components/FramePanel.vue'
 import LifeHearts from '../components/LifeHearts.vue'
 
 defineEmits(['damage', 'revert', 'next'])
 
 const props = defineProps({
-  players: { type: Array, default: () => [] },
-  turnPhase: { type: String, default: '' },
-  turning: { type: Boolean, default: false },
-  zombies: { type: Object, default: null }
+  players: {type: Array, default: () => []},
+  turnPhase: {type: String, default: ''},
+  turning: {type: Boolean, default: false},
+  zombies: {type: Object, default: null}
 })
 
 const zCounts = computed(() => {
@@ -101,72 +101,73 @@ const totalZombies = computed(() => {
 </script>
 
 <style scoped>
-/* Faz a tela do HUD ocupar a altura total da viewport (desktop) */
-.container{
+.container {
   min-height: calc(100vh - 36px); /* 18px top + 18px bottom (margin do .container) */
   display: flex;
   flex-direction: column;
 }
 
-/* Deixa o grid crescer até encostar no final da página */
-.hud-grid{
+.hud-grid {
   flex: 1;
   min-height: 0; /* importante pra evitar overflow estranho em flex */
 }
 
-/* Garante que cada coluna/painel estique a altura do grid */
-.hud-grid > *{
+.hud-grid > * {
   height: 100%;
 }
 
-/* Faz o FramePanel preencher a altura disponível (apenas dentro do GameHud) */
-:deep(.panel){
+:deep(.panel) {
   height: 100%;
   display: flex;
   flex-direction: column;
 }
-:deep(.panel__body){
+
+:deep(.panel__body) {
   flex: 1;
   min-height: 0;
 }
 
-/* Mobile: não força “full height” (fica natural e scrollável) */
-@media (max-width: 1100px){
-  .container{
+@media (max-width: 1100px) {
+  .container {
     min-height: auto;
     display: block;
   }
-  .hud-grid{
+
+  .hud-grid {
     flex: none;
     min-height: auto;
   }
-  .hud-grid > *{
+
+  .hud-grid > * {
     height: auto;
   }
-  :deep(.panel){
+
+  :deep(.panel) {
     height: auto;
   }
-  :deep(.panel__body){
+
+  :deep(.panel__body) {
     min-height: auto;
   }
 }
-.zombieHud{
+
+.zombieHud {
   display: grid;
   gap: 10px;
 }
 
-.namePlaceholder{
+.namePlaceholder {
   opacity: .95;
 }
 
-.frame-title--nav{
+.frame-title--nav {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 56px;
   align-items: center;
   gap: 12px;
 }
 
-.frame-title__text{
+.frame-title__text {
   justify-self: center;
   white-space: nowrap;
   overflow: hidden;
@@ -175,60 +176,62 @@ const totalZombies = computed(() => {
   line-height: 1;
 }
 
-@media (max-width: 620px){
-  .frame-title{
+@media (max-width: 620px) {
+  .frame-title {
     padding: 14px 12px 12px;
   }
-  .frame-title--nav{
+
+  .frame-title--nav {
     grid-template-columns: minmax(0, 1fr) 46px;
     gap: 10px;
   }
-  .navBtn{
+
+  .navBtn {
     width: 46px;
   }
 }
 
-.navBtn{
+.navBtn {
   height: 44px;
   width: 56px;
   border-radius: 12px;
-  border: 2px solid rgba(0,0,0,.65);
-  background: rgba(0,0,0,.22);
-  color: rgba(255,255,255,.92);
+  border: 2px solid rgba(0, 0, 0, .65);
+  background: rgba(0, 0, 0, .22);
+  color: rgba(255, 255, 255, .92);
   font-family: "Bebas Neue", system-ui, sans-serif;
   font-size: 34px;
   line-height: 1;
   cursor: pointer;
-  box-shadow: 0 0 0 2px rgba(255,255,255,.06) inset;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .06) inset;
 }
 
-.navBtn:active{
+.navBtn:active {
   transform: translateY(1px);
 }
 
-.navBtn:disabled{
+.navBtn:disabled {
   opacity: .45;
   cursor: not-allowed;
 }
 
-.zTitle{
+.zTitle {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.zTitle h2{
+.zTitle h2 {
   font-size: 54px;
 }
 
-.zBody{
+.zBody {
   display: grid;
   gap: 10px;
   text-align: center;
 }
 
 /* Igual ao quadrante do personagem (HUD de player) */
-.zHero{
+.zHero {
   padding: 14px;
 
   width: 100%;
@@ -247,21 +250,20 @@ const totalZombies = computed(() => {
   background: none;
 }
 
-.pRight{
+.pRight {
   display: flex;
   gap: 20px;
   align-items: center;
 }
 
-.zHero::before{
+.zHero::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: 0;
 
-  background-image:
-      linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.65)),
-      url("/images/others/dangerZone.jpg");
+  background-image: linear-gradient(180deg, rgba(0, 0, 0, .35), rgba(0, 0, 0, .65)),
+  url("/images/others/dangerZone.jpg");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -270,7 +272,7 @@ const totalZombies = computed(() => {
   opacity: 0.25;
 }
 
-.zHero__img{
+.zHero__img {
   position: relative;
   z-index: 1;
 
@@ -283,28 +285,27 @@ const totalZombies = computed(() => {
   object-position: center bottom;
   display: block;
 
-  filter: drop-shadow(0 10px 20px rgba(0,0,0,.55));
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, .55));
 }
 
-@media (max-width: 1100px){
-  .zHero{
+@media (max-width: 1100px) {
+  .zHero {
     min-height: 420px;
     aspect-ratio: 3 / 4;
   }
 }
 
-.playersList{
+.playersList {
   display: grid;
   gap: 10px;
 }
 
-.pRow{
+.pRow {
   border-radius: 14px;
-  border: 2px solid rgba(0,0,0,.70);
-  background:
-      radial-gradient(120% 140% at 50% 0%, rgba(255,255,255,.12), rgba(255,255,255,0) 46%),
-      linear-gradient(180deg, #7a0015, #260008);
-  box-shadow: 0 0 0 2px rgba(255,255,255,.05) inset;
+  border: 2px solid rgba(0, 0, 0, .70);
+  background: radial-gradient(120% 140% at 50% 0%, rgba(255, 255, 255, .12), rgba(255, 255, 255, 0) 46%),
+  linear-gradient(180deg, #7a0015, #260008);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .05) inset;
 
   padding: 12px;
   display: grid;
@@ -313,13 +314,13 @@ const totalZombies = computed(() => {
   align-items: center;
 }
 
-.pName{
+.pName {
   font-family: "Bebas Neue", system-ui, sans-serif;
   font-size: 26px;
   line-height: 1;
 }
 
-.pMeta{
+.pMeta {
   margin-top: 4px;
   font-weight: 700;
   letter-spacing: .03em;
@@ -327,34 +328,34 @@ const totalZombies = computed(() => {
   font-size: 12px;
 }
 
-.pMid{
+.pMid {
   min-width: 140px;
   display: grid;
   justify-items: center;
 }
 
-.btnDamage{
-   height: 44px;
-   min-width: 120px;
-   padding: 0 14px;
-   border-radius: 10px;
-   border: 0;
-   cursor: pointer;
-   font-weight: 900;
-   letter-spacing: .02em;
-   color: white;
-   box-shadow: 0 0 0 3px rgba(0, 0, 0, .55);
-   background: linear-gradient(#c9132b, #650013);
-   font-family: "Bebas Neue", system-ui, sans-serif;
-   font-size: 28px;
- }
+.btnDamage {
+  height: 44px;
+  min-width: 120px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 0;
+  cursor: pointer;
+  font-weight: 900;
+  letter-spacing: .02em;
+  color: white;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, .55);
+  background: linear-gradient(#c9132b, #650013);
+  font-family: "Bebas Neue", system-ui, sans-serif;
+  font-size: 28px;
+}
 
-.btnDamage:disabled{
+.btnDamage:disabled {
   opacity: .5;
   cursor: not-allowed;
 }
 
-.btnDamageRevert{
+.btnDamageRevert {
   height: 44px;
   min-width: 120px;
   padding: 0 14px;
@@ -370,19 +371,44 @@ const totalZombies = computed(() => {
   font-size: 28px;
 }
 
-.btnDamageRevert:disabled{
+.btnDamageRevert:disabled {
   opacity: .5;
   cursor: not-allowed;
 }
-.muted{ color: var(--muted); }
 
-@media (max-width: 700px){
-  .pRow{
+.muted {
+  color: var(--muted);
+}
+
+@media (max-width: 700px) {
+  .pRow {
     grid-template-columns: 1fr;
     justify-items: stretch;
   }
-  .pMid{
+
+  .pMid {
     justify-items: start;
+  }
+}
+
+.frame-subtitle--nav {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px; /* mesma largura do botão */
+  align-items: center;
+  gap: 12px;
+}
+
+.frame-subtitle__text {
+  justify-self: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 420px) {
+  .frame-subtitle--nav {
+    grid-template-columns: minmax(0, 1fr) 46px; /* mesma do mobile */
+    gap: 10px;
   }
 }
 </style>
