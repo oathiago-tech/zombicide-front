@@ -14,12 +14,6 @@
     <div class="enemy__mid">
       <div class="enemy__name">{{ name }}: <span>{{ many ?? '0' }}</span></div>
     </div>
-
-    <div class="enemy__right">
-      <button class="enemy__btn" type="button">
-        Kill
-      </button>
-    </div>
   </div>
 </template>
 

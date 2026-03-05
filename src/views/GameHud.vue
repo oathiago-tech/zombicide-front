@@ -4,13 +4,26 @@
       <span class="namePlaceholder">Carregando partida...</span>
     </div>
 
-    <div v-else-if="error" class="frame-subtitle">
-      <span class="namePlaceholder">{{ error }}</span>
+    <div v-else-if="fatalError" class="frame-subtitle">
+      <span class="namePlaceholder">{{ fatalError }}</span>
     </div>
 
     <template v-else>
+      <!-- Mensagem não-bloqueante: aparece e mantém o HUD na tela -->
+      <div v-if="uiError" class="uiError" role="alert" aria-live="polite">
+        <span class="uiError__text">{{ uiError }}</span>
+        <button
+            class="uiError__close"
+            type="button"
+            @click="uiError = ''"
+            aria-label="Fechar mensagem"
+        >
+          ×
+        </button>
+      </div>
+
       <div class="topActions">
-        <button class="pauseBtn" type="button" @click="pauseMatch" :disabled="pausing || turning">
+        <button class="enemy__btn" type="button" @click="pauseMatch" :disabled="pausing || turning">
           {{ pausing ? 'Pausando...' : 'Pause' }}
         </button>
       </div>
@@ -34,6 +47,7 @@
               type="button"
               @click="nextTurn"
               aria-label="Next turn"
+              :disabled="turning"
           >
             &gt;
           </button>
@@ -63,7 +77,7 @@
                 </template>
 
                 <div class="muted small">
-                  <span><LifeHearts :current="life" :max="maxLife"/></span>
+                  <span><LifeHearts :current="life" :max="maxLife" /></span>
                 </div>
               </StatBadge>
 
@@ -71,7 +85,7 @@
                 <template #value>
                   <span class="levelValue">{{ level }}</span>
                 </template>
-                <HeartbeatMonitor :value="level"/>
+                <HeartbeatMonitor :value="level" />
               </StatBadge>
             </div>
 
@@ -94,10 +108,10 @@
             </template>
 
             <div class="enemiesList">
-              <EnemyItem name="Walkers" :many="0" image-src="/images/zombies/walker.webp"/>
-              <EnemyItem name="Runners" :many="0" image-src="/images/zombies/runner.webp"/>
-              <EnemyItem name="Fatties" :many="0" image-src="/images/zombies/fatty.webp"/>
-              <EnemyItem name="Abomination" :many="0" image-src="/images/zombies/abomination.webp"/>
+              <EnemyItem name="Walkers" :many="0" image-src="/images/zombies/walker.webp" />
+              <EnemyItem name="Runners" :many="0" image-src="/images/zombies/runner.webp" />
+              <EnemyItem name="Fatties" :many="0" image-src="/images/zombies/fatty.webp" />
+              <EnemyItem name="Abomination" :many="0" image-src="/images/zombies/abomination.webp" />
             </div>
           </FramePanel>
         </div>
@@ -107,15 +121,15 @@
 </template>
 
 <script setup>
-import {computed, onMounted, ref} from 'vue'
-import {useRoute, useRouter} from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import FramePanel from '../components/FramePanel.vue'
 import StatBadge from '../components/StatBadge.vue'
 import EnemyItem from '../components/EnemyItem.vue'
 import HeartbeatMonitor from '../components/HeartbeatMonitor.vue'
 import LifeHearts from '../components/LifeHearts.vue'
 import ZombieHud from '../components/zombieHud.vue'
-import {API_BASE_URL} from '../../config/api.js'
+import { API_BASE_URL } from '../../config/api.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -129,7 +143,23 @@ const DAMAGE_API_BASE = API_BASE_URL
 const loading = ref(false)
 const turning = ref(false)
 const pausing = ref(false)
-const error = ref('')
+
+const fatalError = ref('')
+const uiError = ref('')
+let uiErrorTimer = null
+
+function showUiError(message) {
+  uiError.value = String(message || 'Falha na comunicação com o servidor.')
+  if (uiErrorTimer) window.clearTimeout(uiErrorTimer)
+  uiErrorTimer = window.setTimeout(() => {
+    uiError.value = ''
+    uiErrorTimer = null
+  }, 6000)
+}
+
+function showEndpointError(e, fallback) {
+  showUiError(e?.message ?? fallback ?? 'Falha ao chamar o endpoint.')
+}
 
 const turnPhase = ref('PLAYER')
 const isZombieTurn = computed(() => String(turnPhase.value || '').toUpperCase().startsWith('ZOMB'))
@@ -137,11 +167,15 @@ const isZombieTurn = computed(() => String(turnPhase.value || '').toUpperCase().
 const players = ref([])
 
 const currentPlayerIndex = ref(0)
-const currentPlayer = computed(() => players.value[currentPlayerIndex.value] ?? players.value[0] ?? {
-  playerName: '—',
-  characterName: '—',
-  characterImg: '/images/players/amy.webp'
-})
+const currentPlayer = computed(
+    () =>
+        players.value[currentPlayerIndex.value] ??
+        players.value[0] ?? {
+          playerName: '—',
+          characterName: '—',
+          characterImg: '/images/players/amy.webp'
+        }
+)
 
 function characterToImage(character) {
   const key = String(character || '').toUpperCase()
@@ -173,9 +207,7 @@ function applyMatchToHud(match) {
     throw new Error('Esta partida não possui jogadores cadastrados.')
   }
 
-  const idxById = match?.currentPlayerId
-      ? players.value.findIndex(p => p.id === match.currentPlayerId)
-      : -1
+  const idxById = match?.currentPlayerId ? players.value.findIndex(p => p.id === match.currentPlayerId) : -1
 
   const idxByTurnIndex =
       Number.isInteger(match?.currentTurnIndex) &&
@@ -184,7 +216,7 @@ function applyMatchToHud(match) {
           ? match.currentTurnIndex
           : -1
 
-  currentPlayerIndex.value = idxById >= 0 ? idxById : (idxByTurnIndex >= 0 ? idxByTurnIndex : 0)
+  currentPlayerIndex.value = idxById >= 0 ? idxById : idxByTurnIndex >= 0 ? idxByTurnIndex : 0
 }
 
 /**
@@ -244,23 +276,24 @@ function popLastDamageEvent(playerId) {
 async function pauseMatch() {
   const matchId = getActiveMatchId()
   if (!matchId) {
-    error.value = 'Partida ativa não encontrada para pausar.'
+    showUiError('Partida ativa não encontrada para pausar.')
     return
   }
 
   pausing.value = true
-  error.value = ''
+  uiError.value = ''
   try {
     const url = `${API_BASE}/matches/pause?match=${encodeURIComponent(matchId)}`
-    const res = await fetch(url, {method: 'POST'})
+    const res = await fetch(url, { method: 'POST' })
     if (!res.ok) {
       const text = await res.text().catch(() => '')
       throw new Error(`ERRO AO PAUSAR PARTIDA (HTTP ${res.status}). ${text}`)
     }
 
-    router.push({name: 'home'})
+    // Sucesso: pode navegar. Em falha, fica na mesma tela e exibe a mensagem.
+    router.push({ name: 'home' })
   } catch (e) {
-    error.value = e?.message ?? 'Falha ao pausar partida'
+    showEndpointError(e, 'Falha ao pausar partida')
   } finally {
     pausing.value = false
   }
@@ -268,10 +301,10 @@ async function pauseMatch() {
 
 async function damagePlayer(playerId) {
   if (!playerId) return
-  error.value = ''
+  uiError.value = ''
   try {
     const url = `${DAMAGE_API_BASE}/matches/damage?player=${encodeURIComponent(playerId)}&amount=1`
-    const res = await fetch(url, {method: 'POST'})
+    const res = await fetch(url, { method: 'POST' })
     if (!res.ok) {
       const text = await res.text().catch(() => '')
       throw new Error(`ERRO AO APLICAR DANO (HTTP ${res.status}). ${text}`)
@@ -295,27 +328,27 @@ async function damagePlayer(playerId) {
       const idx = players.value.findIndex(p => p.id === playerId)
       if (idx >= 0) {
         const p = players.value[idx]
-        players.value[idx] = {...p, life: Math.max(0, Number(p.life ?? 0) - 1)}
+        players.value[idx] = { ...p, life: Math.max(0, Number(p.life ?? 0) - 1) }
       }
     }
   } catch (e) {
-    error.value = e?.message ?? 'Falha ao aplicar dano'
+    showEndpointError(e, 'Falha ao aplicar dano')
   }
 }
 
 async function revertPlayer(playerId) {
   if (!playerId) return
-  error.value = ''
+  uiError.value = ''
 
   const eventId = popLastDamageEvent(playerId)
   if (!eventId) {
-    error.value = 'Nenhum dano para reverter para este jogador.'
+    showUiError('Nenhum dano para reverter para este jogador.')
     return
   }
 
   try {
     const url = `${DAMAGE_API_BASE}/matches/damage/revert?event=${encodeURIComponent(eventId)}`
-    const res = await fetch(url, {method: 'POST'})
+    const res = await fetch(url, { method: 'POST' })
     if (!res.ok) {
       const text = await res.text().catch(() => '')
       // devolve o evento para não perder o histórico caso a chamada falhe
@@ -333,24 +366,26 @@ async function revertPlayer(playerId) {
       const idx = players.value.findIndex(p => p.id === playerId)
       if (idx >= 0) {
         const p = players.value[idx]
-        players.value[idx] = {...p, life: Math.min(Number(maxLife.value ?? 3), Number(p.life ?? 0) + 1)}
+        players.value[idx] = { ...p, life: Math.min(Number(maxLife.value ?? 3), Number(p.life ?? 0) + 1) }
       }
     }
   } catch (e) {
-    error.value = e?.message ?? 'Falha ao reverter dano'
+    showEndpointError(e, 'Falha ao reverter dano')
   }
 }
 
 async function loadMatchFromSession() {
-  error.value = ''
+  fatalError.value = ''
+  uiError.value = ''
   loading.value = true
   try {
     const raw = sessionStorage.getItem(ACTIVE_MATCH_STORAGE_KEY)
     if (!raw) {
       const matchFromQuery = route.query?.match
-      throw new Error(matchFromQuery
-          ? 'Partida não encontrada no storage (inicie a partida pela Home para carregar os jogadores).'
-          : 'Nenhuma partida ativa. Volte e clique em "Iniciar partida".'
+      throw new Error(
+          matchFromQuery
+              ? 'Partida não encontrada no storage (inicie a partida pela Home para carregar os jogadores).'
+              : 'Nenhuma partida ativa. Volte e clique em "Iniciar partida".'
       )
     }
 
@@ -361,7 +396,7 @@ async function loadMatchFromSession() {
   } catch (e) {
     players.value = []
     currentPlayerIndex.value = 0
-    error.value = e?.message ?? 'Falha ao carregar a partida'
+    fatalError.value = e?.message ?? 'Falha ao carregar a partida'
   } finally {
     loading.value = false
   }
@@ -369,9 +404,9 @@ async function loadMatchFromSession() {
 
 async function nextTurn() {
   turning.value = true
-  error.value = ''
+  uiError.value = ''
   try {
-    const res = await fetch(`${API_BASE}/matches/turn/next`, {method: 'POST'})
+    const res = await fetch(`${API_BASE}/matches/turn/next`, { method: 'POST' })
     if (!res.ok) {
       const text = await res.text().catch(() => '')
       throw new Error(`ERRO AO PASSAR TURNO (HTTP ${res.status}). ${text}`)
@@ -382,7 +417,7 @@ async function nextTurn() {
     sessionStorage.setItem(ACTIVE_MATCH_STORAGE_KEY, JSON.stringify(match))
     applyMatchToHud(match)
   } catch (e) {
-    error.value = e?.message ?? 'Falha ao passar turno'
+    showEndpointError(e, 'Falha ao passar turno')
   } finally {
     turning.value = false
   }
@@ -390,240 +425,3 @@ async function nextTurn() {
 
 onMounted(loadMatchFromSession)
 </script>
-
-<style scoped>
-.namePlaceholder {
-  opacity: .95;
-}
-
-.topActions {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 10px;
-}
-
-.pauseBtn {
-  height: 44px;
-  padding: 0 16px;
-  border-radius: 12px;
-  border: 2px solid rgba(0, 0, 0, .65);
-  background: rgba(0, 0, 0, .22);
-  color: rgba(255, 255, 255, .92);
-  font-family: "Bebas Neue", system-ui, sans-serif;
-  font-size: 28px;
-  letter-spacing: .03em;
-  cursor: pointer;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, .06) inset;
-}
-
-.pauseBtn:disabled {
-  opacity: .45;
-  cursor: not-allowed;
-}
-
-.frame-title--nav {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 56px;
-  align-items: center;
-  gap: 12px;
-}
-
-.frame-title__text {
-  justify-self: center;
-
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  font-size: clamp(28px, 6vw, 54px);
-  line-height: 1;
-}
-
-@media (max-width: 420px) {
-  .frame-title {
-    padding: 14px 12px 12px;
-  }
-
-  .frame-title--nav {
-    grid-template-columns: minmax(0, 1fr) 46px;
-    gap: 10px;
-  }
-
-  .navBtn {
-    width: 46px;
-  }
-}
-
-.navBtn {
-  height: 44px;
-  width: 56px;
-  border-radius: 12px;
-  border: 2px solid rgba(0, 0, 0, .65);
-  background: rgba(0, 0, 0, .22);
-  color: rgba(255, 255, 255, .92);
-  font-family: "Bebas Neue", system-ui, sans-serif;
-  font-size: 34px;
-  line-height: 1;
-  cursor: pointer;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, .06) inset;
-}
-
-.navBtn:active {
-  transform: translateY(1px);
-}
-
-.navBtn:disabled {
-  opacity: .45;
-  cursor: not-allowed;
-}
-
-/* Character: tamanho estável + fundo dangerZone dentro do quadrante */
-.placeholder--character {
-  padding: 14px;
-
-  width: 100%;
-  aspect-ratio: 3 / 4;
-  min-height: 560px;
-
-  display: grid;
-  place-items: center;
-
-  overflow: hidden;
-
-  position: relative;
-  isolation: isolate;
-
-  border-radius: 14px;
-  background: none;
-}
-
-.placeholder--character::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-
-  background-image: linear-gradient(180deg, rgba(0, 0, 0, .35), rgba(0, 0, 0, .65)),
-  url("/images/others/dangerZone.jpg");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-
-  border-radius: inherit;
-  opacity: 0.25;
-}
-
-.character__img {
-  position: relative;
-  z-index: 1;
-
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  max-height: 100%;
-
-  object-fit: contain;
-  object-position: center bottom;
-  display: block;
-
-  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, .55));
-}
-
-@media (max-width: 1100px) {
-  .placeholder--character {
-    min-height: 420px;
-    aspect-ratio: 3 / 4;
-  }
-}
-
-/* center */
-.center {
-  display: grid;
-  gap: 12px;
-  grid-template-rows: auto 1fr;
-}
-
-.center__top {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-@media (max-width: 1100px) {
-  .center__top {
-    grid-template-columns: 1fr;
-  }
-}
-
-.center__bottom {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-@media (max-width: 700px) {
-  .center__bottom {
-    grid-template-columns: 1fr;
-  }
-}
-
-.card {
-  min-height: 360px;
-}
-
-/* enemies */
-.enemiesTitle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.enemiesTitle h2 {
-  font-size: 54px;
-}
-
-.enemiesList {
-  display: grid;
-  gap: 12px;
-}
-
-.muted {
-  color: var(--muted);
-}
-
-.small {
-  font-size: 12px;
-  font-weight: 300;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-}
-
-.levelValue {
-  font-family: "Bebas Neue", system-ui, sans-serif;
-  font-size: 36px;
-  line-height: 1;
-  color: rgba(255, 255, 255, .92);
-  text-shadow: 0 2px 0 rgba(0, 0, 0, .45);
-}
-
-.frame-subtitle--nav {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 56px; /* mesma largura do botão */
-  align-items: center;
-  gap: 12px;
-}
-
-.frame-subtitle__text {
-  justify-self: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-@media (max-width: 420px) {
-  .frame-subtitle--nav {
-    grid-template-columns: minmax(0, 1fr) 46px; /* mesma do mobile */
-    gap: 10px;
-  }
-}
-</style>

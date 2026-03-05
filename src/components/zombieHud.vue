@@ -20,12 +20,6 @@
 
     <div class="hud-grid">
       <FramePanel>
-        <template #title>
-          <div class="zTitle">
-            <h2>Zombies</h2>
-          </div>
-        </template>
-
         <div class="zBody">
           <div class="zHero">
             <img class="zHero__img" src="/images/zombies/abomination.webp" alt="Abomination"/>
@@ -43,12 +37,14 @@
         <div class="playersList">
           <div v-for="p in players" :key="p.id" class="pRow">
             <div class="pLeft">
-              <div class="pName">{{ p.playerName }}</div>
+              <div class="pName" v-if="(p.life ?? 0) > 0">{{ p.playerName }}</div>
+              <div class="pName" v-else>Dead Player</div>
               <div class="pMeta muted">{{ p.characterName }}</div>
             </div>
 
             <div class="pMid">
-              <LifeHearts :current="p.life ?? 0" :max="3"/>
+              <LifeHearts v-if="(p.life ?? 0) > 0" :current="p.life ?? 0" :max="3" />
+              <span v-else class="deadSkull" aria-label="Dead player" role="img">☠️☠️☠️</span>
             </div>
 
             <div class="pRight">
@@ -56,15 +52,28 @@
                 Damage
               </button>
 
-              <button class="btnDamageRevert" type="button" @click="$emit('revert', p.id)" :disabled="turning">
+              <button class="enemy__btn" type="button" @click="$emit('revert', p.id)" :disabled="turning">
                 Revert
               </button>
             </div>
           </div>
-
           <div v-if="players.length === 0" class="empty">
             Nenhum jogador na partida.
           </div>
+        </div>
+      </FramePanel>
+      <FramePanel>
+        <template #title>
+          <div class="zTitle">
+            <h2>In Game</h2>
+          </div>
+        </template>
+
+        <div class="enemiesList">
+          <Zombies name="Walkers" :many="0" image-src="/images/zombies/walker.webp" />
+          <Zombies name="Runners" :many="0" image-src="/images/zombies/runner.webp" />
+          <Zombies name="Fatties" :many="0" image-src="/images/zombies/fatty.webp" />
+          <Zombies name="Abomination" :many="0" image-src="/images/zombies/abomination.webp" />
         </div>
       </FramePanel>
     </div>
@@ -75,6 +84,7 @@
 import {computed} from 'vue'
 import FramePanel from '../components/FramePanel.vue'
 import LifeHearts from '../components/LifeHearts.vue'
+import Zombies from "./Zombies.vue";
 
 defineEmits(['damage', 'revert', 'next'])
 
@@ -99,316 +109,3 @@ const totalZombies = computed(() => {
   return zCounts.value.walkers + zCounts.value.runners + zCounts.value.fatties + zCounts.value.abomination
 })
 </script>
-
-<style scoped>
-.container {
-  min-height: calc(100vh - 36px); /* 18px top + 18px bottom (margin do .container) */
-  display: flex;
-  flex-direction: column;
-}
-
-.hud-grid {
-  flex: 1;
-  min-height: 0; /* importante pra evitar overflow estranho em flex */
-}
-
-.hud-grid > * {
-  height: 100%;
-}
-
-:deep(.panel) {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-:deep(.panel__body) {
-  flex: 1;
-  min-height: 0;
-}
-
-@media (max-width: 1100px) {
-  .container {
-    min-height: auto;
-    display: block;
-  }
-
-  .hud-grid {
-    flex: none;
-    min-height: auto;
-  }
-
-  .hud-grid > * {
-    height: auto;
-  }
-
-  :deep(.panel) {
-    height: auto;
-  }
-
-  :deep(.panel__body) {
-    min-height: auto;
-  }
-}
-
-.zombieHud {
-  display: grid;
-  gap: 10px;
-}
-
-.namePlaceholder {
-  opacity: .95;
-}
-
-.frame-title--nav {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 56px;
-  align-items: center;
-  gap: 12px;
-}
-
-.frame-title__text {
-  justify-self: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: clamp(28px, 6vw, 54px);
-  line-height: 1;
-}
-
-@media (max-width: 620px) {
-  .frame-title {
-    padding: 14px 12px 12px;
-  }
-
-  .frame-title--nav {
-    grid-template-columns: minmax(0, 1fr) 46px;
-    gap: 10px;
-  }
-
-  .navBtn {
-    width: 46px;
-  }
-}
-
-.navBtn {
-  height: 44px;
-  width: 56px;
-  border-radius: 12px;
-  border: 2px solid rgba(0, 0, 0, .65);
-  background: rgba(0, 0, 0, .22);
-  color: rgba(255, 255, 255, .92);
-  font-family: "Bebas Neue", system-ui, sans-serif;
-  font-size: 34px;
-  line-height: 1;
-  cursor: pointer;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, .06) inset;
-}
-
-.navBtn:active {
-  transform: translateY(1px);
-}
-
-.navBtn:disabled {
-  opacity: .45;
-  cursor: not-allowed;
-}
-
-.zTitle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.zTitle h2 {
-  font-size: 54px;
-}
-
-.zBody {
-  display: grid;
-  gap: 10px;
-  text-align: center;
-}
-
-/* Igual ao quadrante do personagem (HUD de player) */
-.zHero {
-  padding: 14px;
-
-  width: 100%;
-  aspect-ratio: 3 / 4;
-  min-height: 260px;
-
-  display: grid;
-  place-items: center;
-
-  overflow: hidden;
-
-  position: relative;
-  isolation: isolate;
-
-  border-radius: 14px;
-  background: none;
-}
-
-.pRight {
-  display: flex;
-  gap: 20px;
-  align-items: center;
-}
-
-.zHero::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-
-  background-image: linear-gradient(180deg, rgba(0, 0, 0, .35), rgba(0, 0, 0, .65)),
-  url("/images/others/dangerZone.jpg");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-
-  border-radius: inherit;
-  opacity: 0.25;
-}
-
-.zHero__img {
-  position: relative;
-  z-index: 1;
-
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  max-height: 100%;
-
-  object-fit: contain;
-  object-position: center bottom;
-  display: block;
-
-  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, .55));
-}
-
-@media (max-width: 1100px) {
-  .zHero {
-    min-height: 420px;
-    aspect-ratio: 3 / 4;
-  }
-}
-
-.playersList {
-  display: grid;
-  gap: 10px;
-}
-
-.pRow {
-  border-radius: 14px;
-  border: 2px solid rgba(0, 0, 0, .70);
-  background: radial-gradient(120% 140% at 50% 0%, rgba(255, 255, 255, .12), rgba(255, 255, 255, 0) 46%),
-  linear-gradient(180deg, #7a0015, #260008);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, .05) inset;
-
-  padding: 12px;
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 12px;
-  align-items: center;
-}
-
-.pName {
-  font-family: "Bebas Neue", system-ui, sans-serif;
-  font-size: 26px;
-  line-height: 1;
-}
-
-.pMeta {
-  margin-top: 4px;
-  font-weight: 700;
-  letter-spacing: .03em;
-  text-transform: uppercase;
-  font-size: 12px;
-}
-
-.pMid {
-  min-width: 140px;
-  display: grid;
-  justify-items: center;
-}
-
-.btnDamage {
-  height: 44px;
-  min-width: 120px;
-  padding: 0 14px;
-  border-radius: 10px;
-  border: 0;
-  cursor: pointer;
-  font-weight: 900;
-  letter-spacing: .02em;
-  color: white;
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, .55);
-  background: linear-gradient(#c9132b, #650013);
-  font-family: "Bebas Neue", system-ui, sans-serif;
-  font-size: 28px;
-}
-
-.btnDamage:disabled {
-  opacity: .5;
-  cursor: not-allowed;
-}
-
-.btnDamageRevert {
-  height: 44px;
-  min-width: 120px;
-  padding: 0 14px;
-  border-radius: 10px;
-  border: 0;
-  cursor: pointer;
-  font-weight: 900;
-  letter-spacing: .02em;
-  color: white;
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, .55);
-  background: linear-gradient(#13c9b4, #0CD8D8FF);
-  font-family: "Bebas Neue", system-ui, sans-serif;
-  font-size: 28px;
-}
-
-.btnDamageRevert:disabled {
-  opacity: .5;
-  cursor: not-allowed;
-}
-
-.muted {
-  color: var(--muted);
-}
-
-@media (max-width: 700px) {
-  .pRow {
-    grid-template-columns: 1fr;
-    justify-items: stretch;
-  }
-
-  .pMid {
-    justify-items: start;
-  }
-}
-
-.frame-subtitle--nav {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 56px; /* mesma largura do botão */
-  align-items: center;
-  gap: 12px;
-}
-
-.frame-subtitle__text {
-  justify-self: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-@media (max-width: 420px) {
-  .frame-subtitle--nav {
-    grid-template-columns: minmax(0, 1fr) 46px; /* mesma do mobile */
-    gap: 10px;
-  }
-}
-</style>
