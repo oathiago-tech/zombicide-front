@@ -110,7 +110,7 @@ async function loadGames() {
   loading.value = true
   error.value = ''
   try {
-    const res = await fetch('http://192.168.100.4:8080/matches/all', {method: 'GET'})
+    const res = await fetch(`${API_BASE}/matches/all`, {method: 'GET'})
     if (!res.ok) {
       const text = await res.text().catch(() => '')
       throw new Error(`ERRO AO LISTAR PARTIDAS (HTTP ${res.status}). ${text}`)

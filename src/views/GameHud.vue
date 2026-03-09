@@ -9,14 +9,27 @@
     </div>
 
     <template v-else>
+      <!-- Alerta de EVENTO (novo) -->
+      <div v-if="eventAlert" class="uiError uiError--event" role="alert" aria-live="assertive">
+        <span class="uiError__text">{{ eventAlert }}</span>
+        <button
+          class="uiError__close"
+          type="button"
+          @click="eventAlert = ''"
+          aria-label="Fechar alerta"
+        >
+          ×
+        </button>
+      </div>
+
       <!-- Mensagem não-bloqueante: aparece e mantém o HUD na tela -->
       <div v-if="uiError" class="uiError" role="alert" aria-live="polite">
         <span class="uiError__text">{{ uiError }}</span>
         <button
-            class="uiError__close"
-            type="button"
-            @click="uiError = ''"
-            aria-label="Fechar mensagem"
+          class="uiError__close"
+          type="button"
+          @click="uiError = ''"
+          aria-label="Fechar mensagem"
         >
           ×
         </button>
@@ -29,13 +42,13 @@
       </div>
 
       <ZombieHud
-          v-if="isZombieTurn"
-          :players="players"
-          :turn-phase="turnPhase"
-          :turning="turning"
-          @damage="damagePlayer"
-          @revert="revertPlayer"
-          @next="nextTurn"
+        v-if="isZombieTurn"
+        :players="players"
+        :turn-phase="turnPhase"
+        :turning="turning"
+        @damage="damagePlayer"
+        @revert="revertPlayer"
+        @next="nextTurn"
       />
 
       <template v-else>
@@ -43,11 +56,11 @@
           <span class="frame-title__text">{{ currentPlayer.playerName }}</span>
 
           <button
-              class="navBtn"
-              type="button"
-              @click="nextTurn"
-              aria-label="Next turn"
-              :disabled="turning"
+            class="navBtn"
+            type="button"
+            @click="nextTurn"
+            aria-label="Next turn"
+            :disabled="turning"
           >
             &gt;
           </button>
@@ -62,9 +75,9 @@
           <FramePanel>
             <div class="placeholder placeholder--character">
               <img
-                  class="character__img"
-                  :src="currentPlayer.characterImg"
-                  :alt="currentPlayer.characterName"
+                class="character__img"
+                :src="currentPlayer.characterImg"
+                :alt="currentPlayer.characterName"
               />
             </div>
           </FramePanel>
@@ -108,10 +121,10 @@
             </template>
 
             <div class="enemiesList">
-              <EnemyItem name="Walkers" :many="0" image-src="/images/zombies/walker.webp" />
-              <EnemyItem name="Runners" :many="0" image-src="/images/zombies/runner.webp" />
-              <EnemyItem name="Fatties" :many="0" image-src="/images/zombies/fatty.webp" />
-              <EnemyItem name="Abomination" :many="0" image-src="/images/zombies/abomination.webp" />
+              <EnemyItem name="Walkers" :many="zombies.walkers" image-src="/images/zombies/walker.webp" />
+              <EnemyItem name="Runners" :many="zombies.runners" image-src="/images/zombies/runner.webp" />
+              <EnemyItem name="Fatties" :many="zombies.fatties" image-src="/images/zombies/fatty.webp" />
+              <EnemyItem name="Abomination" :many="zombies.abomination" image-src="/images/zombies/abomination.webp" />
             </div>
           </FramePanel>
         </div>
@@ -121,7 +134,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import FramePanel from '../components/FramePanel.vue'
 import StatBadge from '../components/StatBadge.vue'
@@ -136,6 +149,13 @@ const router = useRouter()
 
 const ACTIVE_MATCH_STORAGE_KEY = 'activeMatch'
 const DAMAGE_EVENTS_STORAGE_KEY = 'damageEventsByPlayer'
+
+// Eventos (polling)
+const LAST_EVENT_DATETIME_STORAGE_KEY = 'lastEventDateTime'
+const eventAlert = ref('')
+let eventAlertTimer = null
+let eventsPollingTimer = null
+const lastEventDateTime = ref('')
 
 const API_BASE = API_BASE_URL
 const DAMAGE_API_BASE = API_BASE_URL
@@ -161,20 +181,150 @@ function showEndpointError(e, fallback) {
   showUiError(e?.message ?? fallback ?? 'Falha ao chamar o endpoint.')
 }
 
+function showEventAlert(message) {
+  eventAlert.value = String(message || 'Novo evento recebido.')
+  if (eventAlertTimer) window.clearTimeout(eventAlertTimer)
+  eventAlertTimer = window.setTimeout(() => {
+    eventAlert.value = ''
+    eventAlertTimer = null
+  }, 5000)
+}
+
+function loadLastEventDateTime() {
+  const raw = sessionStorage.getItem(LAST_EVENT_DATETIME_STORAGE_KEY)
+  lastEventDateTime.value = raw ? String(raw) : ''
+}
+
+function saveLastEventDateTime(isoString) {
+  lastEventDateTime.value = String(isoString || '')
+  sessionStorage.setItem(LAST_EVENT_DATETIME_STORAGE_KEY, lastEventDateTime.value)
+}
+
+function isNewerEventDateTime(incomingIso) {
+  const incoming = String(incomingIso || '')
+  if (!incoming) return false
+
+  // Se ainda não tem último, salva e não alerta (evita alertar na primeira carga)
+  if (!lastEventDateTime.value) return true
+
+  const a = Date.parse(incoming)
+  const b = Date.parse(lastEventDateTime.value)
+
+  // Se parse falhar, faz fallback para comparação por string (ISO ordena bem)
+  if (!Number.isFinite(a) || !Number.isFinite(b)) {
+    return incoming > lastEventDateTime.value
+  }
+
+  return a > b
+}
+
+function formatEventMessage(ev) {
+  const type = ev?.type ? String(ev.type) : 'EVENT'
+  const danger = ev?.dangerLevel ? String(ev.dangerLevel) : ''
+  const amount = Number(ev?.amount ?? 0)
+  const spawn = ev?.spawnPointType ? String(ev.spawnPointType) : ''
+  const parts = [
+    `Novo evento: ${type}`,
+    danger ? `Danger: ${danger}` : '',
+    Number.isFinite(amount) && amount ? `Amount: ${amount}` : '',
+    spawn ? `Spawn: ${spawn}` : ''
+  ].filter(Boolean)
+  return parts.join(' • ')
+}
+
+async function fetchLastEventOnce() {
+  const url = `${API_BASE}/events/last`
+  const res = await fetch(url, { method: 'GET' })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`ERRO AO BUSCAR EVENTO (HTTP ${res.status}). ${text}`)
+  }
+
+  return await res.json().catch(() => null)
+}
+
+async function pollLastEvent() {
+  try {
+    const ev = await fetchLastEventOnce()
+    const incomingDateTime = ev?.dateTime
+
+    if (!incomingDateTime) return
+
+    const shouldAlert = isNewerEventDateTime(incomingDateTime)
+
+    if (shouldAlert) {
+      // Se não havia último, a primeira execução vai cair aqui.
+      // Para não "alertar ao entrar", só alerta se já existia um last salvo.
+      const hadPrevious = Boolean(lastEventDateTime.value)
+
+      saveLastEventDateTime(incomingDateTime)
+
+      if (hadPrevious) {
+        showEventAlert(formatEventMessage(ev))
+      }
+    }
+  } catch (e) {
+    // polling é contínuo; evita "fatalError" por isso
+    showEndpointError(e, 'Falha ao buscar evento')
+  }
+}
+
+function startEventsPolling() {
+  if (eventsPollingTimer) return
+  // Carrega o último salvo (se existir) e faz uma chamada imediata
+  loadLastEventDateTime()
+  pollLastEvent()
+  eventsPollingTimer = window.setInterval(pollLastEvent, 1000)
+}
+
+function stopEventsPolling() {
+  if (eventsPollingTimer) {
+    window.clearInterval(eventsPollingTimer)
+    eventsPollingTimer = null
+  }
+  if (eventAlertTimer) {
+    window.clearTimeout(eventAlertTimer)
+    eventAlertTimer = null
+  }
+}
+
 const turnPhase = ref('PLAYER')
 const isZombieTurn = computed(() => String(turnPhase.value || '').toUpperCase().startsWith('ZOMB'))
 
 const players = ref([])
 
+/**
+ * Contagem de zumbis (vindo do DTO Match):
+ * - activeWalkers
+ * - activeRunners
+ * - activeFaties
+ * - activeAbomination
+ *
+ * Caso venha null/undefined, mantém 0 por padrão.
+ */
+const zombies = ref({
+  walkers: 0,
+  runners: 0,
+  fatties: 0,
+  abomination: 0
+})
+
+function toNonNegativeIntOrZero(value) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return 0
+  return Math.max(0, Math.trunc(n))
+}
+
 const currentPlayerIndex = ref(0)
 const currentPlayer = computed(
-    () =>
-        players.value[currentPlayerIndex.value] ??
-        players.value[0] ?? {
-          playerName: '—',
-          characterName: '—',
-          characterImg: '/images/players/amy.webp'
-        }
+  () =>
+    players.value[currentPlayerIndex.value] ??
+    players.value[0] ?? {
+      playerName: '—',
+      characterName: '—',
+      characterImg: '/images/players/amy.webp'
+    }
 )
 
 function characterToImage(character) {
@@ -190,6 +340,14 @@ function characterToImage(character) {
 
 function applyMatchToHud(match) {
   turnPhase.value = match?.turnPhase ?? 'PLAYER'
+
+  zombies.value = {
+    walkers: toNonNegativeIntOrZero(match?.activeWalkers),
+    runners: toNonNegativeIntOrZero(match?.activeRunners),
+    // backend usa "activeFaties" (com um 't') e o HUD exibe "Fatties"
+    fatties: toNonNegativeIntOrZero(match?.activeFaties),
+    abomination: toNonNegativeIntOrZero(match?.activeAbomination)
+  }
 
   const backendPlayers = Array.isArray(match?.players) ? match.players : []
 
@@ -210,11 +368,11 @@ function applyMatchToHud(match) {
   const idxById = match?.currentPlayerId ? players.value.findIndex(p => p.id === match.currentPlayerId) : -1
 
   const idxByTurnIndex =
-      Number.isInteger(match?.currentTurnIndex) &&
-      match.currentTurnIndex >= 0 &&
-      match.currentTurnIndex < players.value.length
-          ? match.currentTurnIndex
-          : -1
+    Number.isInteger(match?.currentTurnIndex) &&
+    match.currentTurnIndex >= 0 &&
+    match.currentTurnIndex < players.value.length
+      ? match.currentTurnIndex
+      : -1
 
   currentPlayerIndex.value = idxById >= 0 ? idxById : idxByTurnIndex >= 0 ? idxByTurnIndex : 0
 }
@@ -290,7 +448,6 @@ async function pauseMatch() {
       throw new Error(`ERRO AO PAUSAR PARTIDA (HTTP ${res.status}). ${text}`)
     }
 
-    // Sucesso: pode navegar. Em falha, fica na mesma tela e exibe a mensagem.
     router.push({ name: 'home' })
   } catch (e) {
     showEndpointError(e, 'Falha ao pausar partida')
@@ -310,8 +467,6 @@ async function damagePlayer(playerId) {
       throw new Error(`ERRO AO APLICAR DANO (HTTP ${res.status}). ${text}`)
     }
 
-    // O backend precisa retornar o damageEventId em algum formato.
-    // Aceitamos: { damageEventId: "..." } ou { eventId: "..." } ou um match com "damageEventId".
     const data = await res.json().catch(() => null)
     const damageEventId = data?.damageEventId ?? data?.eventId ?? null
 
@@ -319,12 +474,10 @@ async function damagePlayer(playerId) {
       pushDamageEvent(playerId, damageEventId)
     }
 
-    // Se o backend retornar a partida atualizada (players/turnPhase/etc), aplicamos.
     if (data?.players) {
       sessionStorage.setItem(ACTIVE_MATCH_STORAGE_KEY, JSON.stringify(data))
       applyMatchToHud(data)
     } else {
-      // fallback visual (se o backend não devolveu match): diminui 1 vida localmente
       const idx = players.value.findIndex(p => p.id === playerId)
       if (idx >= 0) {
         const p = players.value[idx]
@@ -351,7 +504,6 @@ async function revertPlayer(playerId) {
     const res = await fetch(url, { method: 'POST' })
     if (!res.ok) {
       const text = await res.text().catch(() => '')
-      // devolve o evento para não perder o histórico caso a chamada falhe
       pushDamageEvent(playerId, eventId)
       throw new Error(`ERRO AO REVERTER DANO (HTTP ${res.status}). ${text}`)
     }
@@ -362,7 +514,6 @@ async function revertPlayer(playerId) {
       sessionStorage.setItem(ACTIVE_MATCH_STORAGE_KEY, JSON.stringify(data))
       applyMatchToHud(data)
     } else {
-      // fallback visual: soma 1 vida localmente
       const idx = players.value.findIndex(p => p.id === playerId)
       if (idx >= 0) {
         const p = players.value[idx]
@@ -383,9 +534,9 @@ async function loadMatchFromSession() {
     if (!raw) {
       const matchFromQuery = route.query?.match
       throw new Error(
-          matchFromQuery
-              ? 'Partida não encontrada no storage (inicie a partida pela Home para carregar os jogadores).'
-              : 'Nenhuma partida ativa. Volte e clique em "Iniciar partida".'
+        matchFromQuery
+          ? 'Partida não encontrada no storage (inicie a partida pela Home para carregar os jogadores).'
+          : 'Nenhuma partida ativa. Volte e clique em "Iniciar partida".'
       )
     }
 
@@ -423,5 +574,12 @@ async function nextTurn() {
   }
 }
 
-onMounted(loadMatchFromSession)
+onMounted(() => {
+  loadMatchFromSession()
+  startEventsPolling()
+})
+
+onUnmounted(() => {
+  stopEventsPolling()
+})
 </script>
