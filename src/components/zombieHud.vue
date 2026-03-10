@@ -52,7 +52,15 @@
                 Damage
               </button>
 
-              <button class="enemy__btn" type="button" @click="$emit('revert', p.id)" :disabled="turning">
+              <button
+                class="enemy__btn"
+                type="button"
+                @click="$emit('revert', {
+                  playerId: String(p.id ?? ''),
+                  characterCode: String(p.characterCode ?? p.characterName ?? '')
+                })"
+                :disabled="turning"
+              >
                 Revert
               </button>
             </div>
@@ -62,6 +70,7 @@
           </div>
         </div>
       </FramePanel>
+
       <FramePanel>
         <template #title>
           <div class="zTitle">
@@ -70,10 +79,10 @@
         </template>
 
         <div class="enemiesList">
-          <Zombies name="Walkers" :many="0" image-src="/images/zombies/walker.webp" />
-          <Zombies name="Runners" :many="0" image-src="/images/zombies/runner.webp" />
-          <Zombies name="Fatties" :many="0" image-src="/images/zombies/fatty.webp" />
-          <Zombies name="Abomination" :many="0" image-src="/images/zombies/abomination.webp" />
+          <Zombies name="Walkers" :many="zCounts.walkers" image-src="/images/zombies/walker.webp" />
+          <Zombies name="Runners" :many="zCounts.runners" image-src="/images/zombies/runner.webp" />
+          <Zombies name="Fatties" :many="zCounts.fatties" image-src="/images/zombies/fatty.webp" />
+          <Zombies name="Abomination" :many="zCounts.abomination" image-src="/images/zombies/abomination.webp" />
         </div>
       </FramePanel>
     </div>
@@ -93,6 +102,12 @@ const props = defineProps({
   turnPhase: {type: String, default: ''},
   turning: {type: Boolean, default: false},
   zombies: {type: Object, default: null}
+})
+
+const sortedPlayers = computed(() => {
+  const list = Array.isArray(props.players) ? props.players.slice() : []
+  const collator = new Intl.Collator('pt-BR', { sensitivity: 'base', numeric: true })
+  return list.sort((a, b) => collator.compare(String(a?.playerName ?? ''), String(b?.playerName ?? '')))
 })
 
 const zCounts = computed(() => {
