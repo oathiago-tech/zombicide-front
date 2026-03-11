@@ -16,7 +16,7 @@
     </div>
 
     <div class="enemy__right">
-      <button class="enemy__btn" type="button">
+      <button class="enemy__btn" type="button" @click="$emit('kill')">
         Kill
       </button>
     </div>
@@ -25,8 +25,10 @@
 
 <script setup>
 defineProps({
-  name: {type: String, required: true},
-  many: {type: [Number, String], default: null},
-  imageSrc: {type: String, default: ''}
+  name: { type: String, required: true },
+  many: { type: [Number, String], default: null },
+  imageSrc: { type: String, default: '' }
 })
+
+defineEmits(['kill'])
 </script>

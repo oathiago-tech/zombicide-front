@@ -152,6 +152,22 @@ let eventAlertTimer = null
 let eventsPollingTimer = null
 const lastEventDateTime = ref('')
 
+// TRAVA do player exibido no HUD (só muda quando o turno muda)
+const HUD_PLAYER_ID_STORAGE_KEY = 'hudPlayerId'
+const HUD_TURN_KEY_STORAGE_KEY = 'hudTurnKey'
+const hudPlayerId = ref('')
+const hudTurnKey = ref('')
+
+function loadHudLockFromSession() {
+  hudPlayerId.value = String(sessionStorage.getItem(HUD_PLAYER_ID_STORAGE_KEY) || '')
+  hudTurnKey.value = String(sessionStorage.getItem(HUD_TURN_KEY_STORAGE_KEY) || '')
+}
+
+function saveHudLockToSession() {
+  sessionStorage.setItem(HUD_PLAYER_ID_STORAGE_KEY, String(hudPlayerId.value || ''))
+  sessionStorage.setItem(HUD_TURN_KEY_STORAGE_KEY, String(hudTurnKey.value || ''))
+}
+
 const API_BASE = API_BASE_URL
 const DAMAGE_API_BASE = API_BASE_URL
 
@@ -239,6 +255,74 @@ async function fetchLastEventOnce() {
   return await res.json().catch(() => null)
 }
 
+// ====== SFX por evento ======
+const audioUnlocked = ref(false)
+const pendingSfxQueue = []
+
+function unlockAudioOnce() {
+  if (audioUnlocked.value) return
+  audioUnlocked.value = true
+
+  // Tenta "desbloquear" áudio (alguns browsers exigem tentativa dentro de gesto do usuário)
+  try {
+    const a = new Audio('/sounds/shot.mp3')
+    a.muted = true
+    const p = a.play()
+    if (p && typeof p.then === 'function') {
+      p.then(() => {
+        a.pause()
+        a.currentTime = 0
+        a.muted = false
+      }).catch(() => {
+        a.muted = false
+      })
+    } else {
+      a.pause()
+      a.currentTime = 0
+      a.muted = false
+    }
+  } catch {
+    // ignore
+  }
+
+  // Drena fila de sons pendentes
+  while (pendingSfxQueue.length) {
+    const url = pendingSfxQueue.shift()
+    if (url) void playSfx(url)
+  }
+}
+
+async function playSfx(url) {
+  if (!audioUnlocked.value) {
+    pendingSfxQueue.push(url)
+    return
+  }
+
+  try {
+    // Cria um Audio novo por disparo (mais confiável para tocar "sempre")
+    const a = new Audio(url)
+    a.preload = 'auto'
+    a.currentTime = 0
+    await a.play()
+  } catch {
+    // ignore (autoplay / erro de carregamento)
+  }
+}
+
+function playEventSfx(ev) {
+  const type = String(ev?.type ?? '').toUpperCase()
+
+  if (type === 'ZOMBIE_KILL') {
+    void playSfx('/sounds/shot.mp3')
+    return
+  }
+
+  if (type === 'ZOMBIE_CARD_SCANNED') {
+    void playSfx('/sounds/zombies-sound.mp3')
+    return
+  }
+}
+
 async function pollLastEvent() {
   try {
     const ev = await fetchLastEventOnce()
@@ -251,9 +335,12 @@ async function pollLastEvent() {
     const hadPrevious = Boolean(lastEventDateTime.value)
     saveLastEventDateTime(incomingDateTime)
 
-    await refreshMatch()
+    // Toca som baseado no tipo do evento (somente para eventos "novos" após o baseline)
+    if (hadPrevious) {
+      playEventSfx(ev)
+    }
 
-    // if (hadPrevious) showEventAlert(formatEventMessage(ev))
+    await refreshMatch()
   } catch (e) {
     showEndpointError(e, 'Falha ao buscar evento')
   }
@@ -281,6 +368,32 @@ const turnPhase = ref('PLAYER')
 const isZombieTurn = computed(() => String(turnPhase.value || '').toUpperCase().startsWith('ZOMB'))
 
 const players = ref([])
+
+// Detectar perda de vida (ferimentos) para tocar attack.mp3
+const lastLifeByPlayerId = ref({})
+
+function buildLifeMap(list) {
+  const map = {}
+  const arr = Array.isArray(list) ? list : []
+  for (const p of arr) {
+    const id = String(p?.id ?? '')
+    if (!id) continue
+    map[id] = Number(p?.life ?? 0) || 0
+  }
+  return map
+}
+
+function didAnyLifeDecrease(prevMap, nextPlayers) {
+  const arr = Array.isArray(nextPlayers) ? nextPlayers : []
+  for (const p of arr) {
+    const id = String(p?.id ?? '')
+    if (!id) continue
+    const nextLife = Number(p?.life ?? 0) || 0
+    const prevLife = Number(prevMap?.[id] ?? nextLife) || 0
+    if (nextLife < prevLife) return true
+  }
+  return false
+}
 
 const playerNameCollator = new Intl.Collator('pt-BR', { sensitivity: 'base', numeric: true })
 
@@ -328,6 +441,42 @@ function characterToImage(character) {
   return '/images/players/amy.webp'
 }
 
+// Som quando zumbis entram em campo
+const zombieSfx = new Audio('/sounds/zombies-sound.mp3')
+zombieSfx.preload = 'auto'
+
+// Som quando um zumbi morre
+const shotSfx = new Audio('/sounds/shot.mp3')
+shotSfx.preload = 'auto'
+
+const lastTotalZombies = ref(0)
+
+function getTotalZombies(z) {
+  const walkers = Number(z?.walkers ?? 0) || 0
+  const runners = Number(z?.runners ?? 0) || 0
+  const fatties = Number(z?.fatties ?? 0) || 0
+  const abomination = Number(z?.abomination ?? 0) || 0
+  return walkers + runners + fatties + abomination
+}
+
+async function playZombieSpawnSfx() {
+  try {
+    zombieSfx.currentTime = 0
+    await zombieSfx.play()
+  } catch {
+    // Autoplay pode ser bloqueado pelo navegador
+  }
+}
+
+async function playShotSfx() {
+  try {
+    shotSfx.currentTime = 0
+    await shotSfx.play()
+  } catch {
+    // Autoplay pode ser bloqueado pelo navegador
+  }
+}
+
 function applyMatchToHud(match) {
   turnPhase.value = match?.turnPhase ?? 'PLAYER'
 
@@ -337,6 +486,20 @@ function applyMatchToHud(match) {
     fatties: toNonNegativeIntOrZero(match?.activeFaties),
     abomination: toNonNegativeIntOrZero(match?.activeAbomination)
   }
+
+  const newTotal = getTotalZombies(zombies.value)
+
+  // aumentou => entrou zumbi
+  if (newTotal > lastTotalZombies.value) {
+    playZombieSpawnSfx()
+  }
+
+  // diminuiu => matou zumbi
+  if (newTotal < lastTotalZombies.value) {
+    playShotSfx()
+  }
+
+  lastTotalZombies.value = newTotal
 
   const backendPlayers = Array.isArray(match?.players) ? match.players : []
 
@@ -351,6 +514,12 @@ function applyMatchToHud(match) {
     zombiesKill: p.zombiesKill ?? 0
   }))
 
+  // Se algum player perdeu vida desde a última atualização, toca "attack"
+  if (didAnyLifeDecrease(lastLifeByPlayerId.value, mappedPlayers)) {
+    void playSfx('/sounds/attack.mp3')
+  }
+  lastLifeByPlayerId.value = buildLifeMap(mappedPlayers)
+
   mappedPlayers.sort((a, b) => {
     const byName = playerNameCollator.compare(String(a.playerName ?? ''), String(b.playerName ?? ''))
     if (byName !== 0) return byName
@@ -363,15 +532,36 @@ function applyMatchToHud(match) {
     throw new Error('Esta partida não possui jogadores cadastrados.')
   }
 
-  const idxById = match?.currentPlayerId ? players.value.findIndex(p => p.id === match.currentPlayerId) : -1
-  const idxByTurnIndex =
-      Number.isInteger(match?.currentTurnIndex) &&
-      match.currentTurnIndex >= 0 &&
-      match.currentTurnIndex < players.value.length
-          ? match.currentTurnIndex
-          : -1
+  // Assinatura do turno (mude aqui se o backend tiver outro campo melhor)
+  const incomingTurnKey = [
+    String(match?.turnPhase ?? ''),
+    String(match?.currentTurnIndex ?? ''),
+    String(match?.currentPlayerId ?? '')
+  ].join('|')
 
-  currentPlayerIndex.value = idxById >= 0 ? idxById : idxByTurnIndex >= 0 ? idxByTurnIndex : 0
+  const incomingPlayerId = String(match?.currentPlayerId || '')
+
+  // Inicializa a trava se ainda não existir
+  if (!hudTurnKey.value && incomingTurnKey) {
+    hudTurnKey.value = incomingTurnKey
+  }
+  if (!hudPlayerId.value && incomingPlayerId) {
+    hudPlayerId.value = incomingPlayerId
+  }
+
+  // Só troca o player do HUD quando o TURNO mudar
+  if (incomingTurnKey && incomingTurnKey !== hudTurnKey.value) {
+    hudTurnKey.value = incomingTurnKey
+    hudPlayerId.value = incomingPlayerId
+  }
+
+  saveHudLockToSession()
+
+  const idxByHudId = hudPlayerId.value
+    ? players.value.findIndex(p => p.id === hudPlayerId.value)
+    : -1
+
+  currentPlayerIndex.value = idxByHudId >= 0 ? idxByHudId : 0
 }
 
 const maxLife = ref(3)
@@ -599,6 +789,13 @@ async function refreshMatch() {
 }
 
 onMounted(() => {
+  // Desbloqueia áudio no primeiro clique/toque do usuário
+  window.addEventListener('pointerdown', unlockAudioOnce, { once: true })
+
+  // baseline pra não tocar som no primeiro load
+  lastTotalZombies.value = getTotalZombies(zombies.value)
+  lastLifeByPlayerId.value = buildLifeMap(players.value)
+
   loadMatchFromSession()
   startEventsPolling()
 })
