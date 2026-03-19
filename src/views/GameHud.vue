@@ -9,7 +9,6 @@
     </div>
 
     <template v-else>
-      <!-- Alerta de EVENTO -->
       <div v-if="eventAlert" class="uiError uiError--event" role="alert" aria-live="assertive">
         <span class="uiError__text">{{ eventAlert }}</span>
         <button class="uiError__close" type="button" @click="eventAlert = ''" aria-label="Fechar alerta">
@@ -17,7 +16,6 @@
         </button>
       </div>
 
-      <!-- Mensagem não-bloqueante -->
       <div v-if="uiError" class="uiError" role="alert" aria-live="polite">
         <span class="uiError__text">{{ uiError }}</span>
         <button class="uiError__close" type="button" @click="uiError = ''" aria-label="Fechar mensagem">
@@ -145,14 +143,12 @@ const router = useRouter()
 const ACTIVE_MATCH_STORAGE_KEY = 'activeMatch'
 const DAMAGE_EVENTS_STORAGE_KEY = 'damageEventsByPlayer'
 
-// Eventos (polling)
 const LAST_EVENT_DATETIME_STORAGE_KEY = 'lastEventDateTime'
 const eventAlert = ref('')
 let eventAlertTimer = null
 let eventsPollingTimer = null
 const lastEventDateTime = ref('')
 
-// TRAVA do player exibido no HUD (só muda quando o turno muda)
 const HUD_PLAYER_ID_STORAGE_KEY = 'hudPlayerId'
 const HUD_TURN_KEY_STORAGE_KEY = 'hudTurnKey'
 const hudPlayerId = ref('')
@@ -255,7 +251,6 @@ async function fetchLastEventOnce() {
   return await res.json().catch(() => null)
 }
 
-// ====== SFX por evento ======
 const audioUnlocked = ref(false)
 const pendingSfxQueue = []
 
@@ -263,7 +258,6 @@ function unlockAudioOnce() {
   if (audioUnlocked.value) return
   audioUnlocked.value = true
 
-  // Tenta "desbloquear" áudio (alguns browsers exigem tentativa dentro de gesto do usuário)
   try {
     const a = new Audio('/sounds/shot.mp3')
     a.muted = true
@@ -285,7 +279,6 @@ function unlockAudioOnce() {
     // ignore
   }
 
-  // Drena fila de sons pendentes
   while (pendingSfxQueue.length) {
     const url = pendingSfxQueue.shift()
     if (url) void playSfx(url)
@@ -299,13 +292,12 @@ async function playSfx(url) {
   }
 
   try {
-    // Cria um Audio novo por disparo (mais confiável para tocar "sempre")
     const a = new Audio(url)
     a.preload = 'auto'
     a.currentTime = 0
     await a.play()
   } catch {
-    // ignore (autoplay / erro de carregamento)
+    // ignore
   }
 }
 
@@ -332,14 +324,12 @@ async function pollLastEvent() {
     const shouldRefresh = isNewerEventDateTime(incomingDateTime)
     if (!shouldRefresh) return
 
-    const hadPrevious = Boolean(lastEventDateTime.value)
     saveLastEventDateTime(incomingDateTime)
 
-    // Toca som baseado no tipo do evento (somente para eventos "novos" após o baseline)
-    if (hadPrevious) {
-      playEventSfx(ev)
-    }
+    // Se chegou um evento novo, toca o SFX correspondente (ZOMBIE_KILL / ZOMBIE_CARD_SCANNED).
+    playEventSfx(ev)
 
+    // Opcional (se quiser exibir): showEventAlert(formatEventMessage(ev))
     await refreshMatch()
   } catch (e) {
     showEndpointError(e, 'Falha ao buscar evento')
@@ -369,7 +359,6 @@ const isZombieTurn = computed(() => String(turnPhase.value || '').toUpperCase().
 
 const players = ref([])
 
-// Detectar perda de vida (ferimentos) para tocar attack.mp3
 const lastLifeByPlayerId = ref({})
 
 function buildLifeMap(list) {
@@ -397,15 +386,6 @@ function didAnyLifeDecrease(prevMap, nextPlayers) {
 
 const playerNameCollator = new Intl.Collator('pt-BR', { sensitivity: 'base', numeric: true })
 
-/**
- * Contagem de zumbis (vindo do DTO Match):
- * - activeWalkers
- * - activeRunners
- * - activeFaties
- * - activeAbomination
- *
- * Caso venha null/undefined, mantém 0 por padrão.
- */
 const zombies = ref({
   walkers: 0,
   runners: 0,
@@ -441,11 +421,9 @@ function characterToImage(character) {
   return '/images/players/amy.webp'
 }
 
-// Som quando zumbis entram em campo
 const zombieSfx = new Audio('/sounds/zombies-sound.mp3')
 zombieSfx.preload = 'auto'
 
-// Som quando um zumbi morre
 const shotSfx = new Audio('/sounds/shot.mp3')
 shotSfx.preload = 'auto'
 
@@ -464,7 +442,7 @@ async function playZombieSpawnSfx() {
     zombieSfx.currentTime = 0
     await zombieSfx.play()
   } catch {
-    // Autoplay pode ser bloqueado pelo navegador
+    // ignore
   }
 }
 
@@ -473,7 +451,7 @@ async function playShotSfx() {
     shotSfx.currentTime = 0
     await shotSfx.play()
   } catch {
-    // Autoplay pode ser bloqueado pelo navegador
+    // ignore
   }
 }
 
@@ -489,12 +467,10 @@ function applyMatchToHud(match) {
 
   const newTotal = getTotalZombies(zombies.value)
 
-  // aumentou => entrou zumbi
   if (newTotal > lastTotalZombies.value) {
     playZombieSpawnSfx()
   }
 
-  // diminuiu => matou zumbi
   if (newTotal < lastTotalZombies.value) {
     playShotSfx()
   }
@@ -514,7 +490,6 @@ function applyMatchToHud(match) {
     zombiesKill: p.zombiesKill ?? 0
   }))
 
-  // Se algum player perdeu vida desde a última atualização, toca "attack"
   if (didAnyLifeDecrease(lastLifeByPlayerId.value, mappedPlayers)) {
     void playSfx('/sounds/attack.mp3')
   }
@@ -532,16 +507,10 @@ function applyMatchToHud(match) {
     throw new Error('Esta partida não possui jogadores cadastrados.')
   }
 
-  // Assinatura do turno (mude aqui se o backend tiver outro campo melhor)
-  const incomingTurnKey = [
-    String(match?.turnPhase ?? ''),
-    String(match?.currentTurnIndex ?? ''),
-    String(match?.currentPlayerId ?? '')
-  ].join('|')
+  const incomingTurnKey = [String(match?.turnPhase ?? ''), String(match?.currentTurnIndex ?? ''), String(match?.currentPlayerId ?? '')].join('|')
 
   const incomingPlayerId = String(match?.currentPlayerId || '')
 
-  // Inicializa a trava se ainda não existir
   if (!hudTurnKey.value && incomingTurnKey) {
     hudTurnKey.value = incomingTurnKey
   }
@@ -549,7 +518,6 @@ function applyMatchToHud(match) {
     hudPlayerId.value = incomingPlayerId
   }
 
-  // Só troca o player do HUD quando o TURNO mudar
   if (incomingTurnKey && incomingTurnKey !== hudTurnKey.value) {
     hudTurnKey.value = incomingTurnKey
     hudPlayerId.value = incomingPlayerId
@@ -557,9 +525,7 @@ function applyMatchToHud(match) {
 
   saveHudLockToSession()
 
-  const idxByHudId = hudPlayerId.value
-    ? players.value.findIndex(p => p.id === hudPlayerId.value)
-    : -1
+  const idxByHudId = hudPlayerId.value ? players.value.findIndex(p => p.id === hudPlayerId.value) : -1
 
   currentPlayerIndex.value = idxByHudId >= 0 ? idxByHudId : 0
 }
@@ -681,10 +647,7 @@ async function revertPlayer(payload) {
   }
 
   const playerId = typeof payload === 'string' ? payload : payload?.playerId
-  const characterCode =
-      typeof payload === 'object' && payload
-          ? payload.characterCode
-          : null
+  const characterCode = typeof payload === 'object' && payload ? payload.characterCode : null
 
   if (!playerId || !characterCode) {
     showUiError('Dados insuficientes para reverter (playerId/characterCode).')
@@ -789,13 +752,12 @@ async function refreshMatch() {
 }
 
 onMounted(() => {
-  // Desbloqueia áudio no primeiro clique/toque do usuário
   window.addEventListener('pointerdown', unlockAudioOnce, { once: true })
 
-  // baseline pra não tocar som no primeiro load
   lastTotalZombies.value = getTotalZombies(zombies.value)
   lastLifeByPlayerId.value = buildLifeMap(players.value)
 
+  loadHudLockFromSession()
   loadMatchFromSession()
   startEventsPolling()
 })
